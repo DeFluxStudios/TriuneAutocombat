@@ -634,6 +634,10 @@ local runtime = {
     pendingCursorClearAt = nil,
     ignoreList = {},
     pullList = {},
+    -- Per-zone additions to the two lists above (keyed by zone short name,
+    -- shared across characters). Effective list = universal + current zone.
+    zoneIgnore = {},
+    zonePull = {},
     -- Per-spawn XTarget overrides set from the Extended Target window
     -- (session-only: spawn ids are transient). xtForceId is the one mob the
     -- engine stays on until it dies; xtIgnoreIds is a set of spawn ids the
@@ -2429,13 +2433,68 @@ end
 
 -- ignore-list helpers: applies only to Hunter/Puller AUTO-targeting (see findRoamTarget
 -- below); Assist and anything you target yourself are never filtered.
+-- Current zone short name, cached ~1s (list checks run per spawn per scan).
+function runtime.curZoneShort()
+    local now = os.clock()
+    if not runtime.zoneShortAt or (now - runtime.zoneShortAt) >= 1.0 then
+        local zs, zn
+        pcall(function() zs = mq.TLO.Zone.ShortName() end)
+        pcall(function() zn = mq.TLO.Zone.Name() end)
+        runtime.zoneShortCached = (zs and zs ~= '' and zs ~= 'NULL') and zs or nil
+        runtime.zoneNameCached = (zn and zn ~= '' and zn ~= 'NULL') and zn or nil
+        runtime.zoneShortAt = now
+    end
+    return runtime.zoneShortCached
+end
+
+-- This zone's list from `store` (runtime.zoneIgnore / runtime.zonePull).
+-- Returns nil when the zone has none unless `create` is set.
+function runtime.zoneListFor(store, create)
+    local zs = runtime.curZoneShort()
+    if not zs or not store then return nil end
+    if not store[zs] and create then store[zs] = {} end
+    return store[zs]
+end
+
+-- Unique NPC names currently spawned in this zone, as a sorted array of
+-- { name =, count = }. Cached ~1.5s and dropped on zone change: the sweep is one
+-- NearestSpawn lookup per NPC, so it only runs while the picker popup is open.
+function runtime.zoneNpcNames()
+    local now = os.clock()
+    local zs = runtime.curZoneShort()
+    local c = runtime.zoneNpcCache
+    if c and c.zone == zs and (now - c.at) < 1.5 then return c.list end
+    local counts, list = {}, {}
+    local n = 0
+    pcall(function() n = mq.TLO.SpawnCount('npc')() or 0 end)
+    for i = 1, math.min(n, 800) do
+        local nm
+        pcall(function() nm = mq.TLO.NearestSpawn(i, 'npc').CleanName() end)
+        if nm and nm ~= '' and nm ~= 'NULL' then
+            if not counts[nm] then
+                counts[nm] = { name = nm, count = 0 }
+                list[#list + 1] = counts[nm]
+            end
+            counts[nm].count = counts[nm].count + 1
+        end
+    end
+    table.sort(list, function(a, b) return a.name:lower() < b.name:lower() end)
+    runtime.zoneNpcCache = { zone = zs, at = now, list = list }
+    return list
+end
+
 local function isIgnored(name)
     if not name then return false end
     local cleanName = tostring(name)
     if cleanName == '' then return false end
-    if not runtime.ignoreList then return false end
-    for _, n in ipairs(runtime.ignoreList) do
+    for _, n in ipairs(runtime.ignoreList or {}) do
         if tostring(n) == cleanName then return true end
+    end
+    local zl = runtime.zoneListFor(runtime.zoneIgnore)
+    if zl then
+        for _, n in ipairs(zl) do
+            if tostring(n) == cleanName then return true end
+        end
     end
     return false
 end
@@ -5455,6 +5514,8 @@ function runtime.loadAll()
     ALLDATA = t
     if type(ALLDATA.__ignore) == 'table' then runtime.ignoreList = ALLDATA.__ignore end
     if type(ALLDATA.__pullList) == 'table' then runtime.pullList = ALLDATA.__pullList end
+    if type(ALLDATA.__zoneIgnore) == 'table' then runtime.zoneIgnore = ALLDATA.__zoneIgnore end
+    if type(ALLDATA.__zonePull) == 'table' then runtime.zonePull = ALLDATA.__zonePull end
     if type(ALLDATA.__zoneHazards) == 'table' then ctrl.zone_hazards = ALLDATA.__zoneHazards end
     if type(ALLDATA.__zoneWaypoints) == 'table' then ctrl.zone_waypoints = ALLDATA.__zoneWaypoints end
     if type(ALLDATA.__zoneWaypointPresets) == 'table' then ctrl.zone_waypoint_presets = ALLDATA.__zoneWaypointPresets end
@@ -5499,6 +5560,8 @@ runtime.saveLoadout = function(silent, force)
     if myName then ALLDATA[myName] = runtime.collectEntry() end
     ALLDATA.__ignore = runtime.ignoreList
     ALLDATA.__pullList = runtime.pullList
+    ALLDATA.__zoneIgnore = runtime.zoneIgnore
+    ALLDATA.__zonePull = runtime.zonePull
     ALLDATA.__zoneHazards = ctrl.zone_hazards
     runtime.syncCurrentZoneWaypoints()
     ALLDATA.__zoneWaypoints = ctrl.zone_waypoints
@@ -5532,44 +5595,61 @@ runtime.saveLoadout = function(silent, force)
     if not silent then print('\ag[Triune]\ax saved loadout for ' .. tostring(myName or '?') .. '.') end
 end
 
-function runtime.addIgnore(name)
-    if not name or name == '' or isIgnored(name) then return end
-    table.insert(runtime.ignoreList, name)
-    table.sort(runtime.ignoreList)
-    runtime.saveLoadout(true)
-    print('\ag[Triune]\ax added to ignore list: ' .. name)
+local function listHas(list, name)
+    for _, n in ipairs(list or {}) do if n == name then return true end end
+    return false
 end
-function runtime.removeIgnore(name)
-    for i, n in ipairs(runtime.ignoreList) do
-        if n == name then
-            table.remove(runtime.ignoreList, i); break
-        end
+local function listRemove(list, name)
+    for i, n in ipairs(list or {}) do
+        if n == name then table.remove(list, i); return end
     end
+end
+
+-- `zone` true targets the current zone's list instead of the universal one.
+function runtime.addIgnore(name, zone)
+    if not name or name == '' then return end
+    local list, label = runtime.ignoreList, 'ignore list'
+    if zone then
+        list = runtime.zoneListFor(runtime.zoneIgnore, true)
+        if not list then return end
+        label = 'zone ignore list (' .. runtime.curZoneShort() .. ')'
+    end
+    if listHas(list, name) then return end
+    table.insert(list, name)
+    table.sort(list)
     runtime.saveLoadout(true)
-    print('\ag[Triune]\ax removed from ignore list: ' .. name)
+    print('\ag[Triune]\ax added to ' .. label .. ': ' .. name)
+end
+function runtime.addZoneIgnore(name) runtime.addIgnore(name, true) end
+function runtime.removeIgnore(name, zone)
+    listRemove(zone and runtime.zoneListFor(runtime.zoneIgnore) or runtime.ignoreList, name)
+    runtime.saveLoadout(true)
+    print('\ag[Triune]\ax removed from ' .. (zone and 'zone ' or '') .. 'ignore list: ' .. name)
 end
 
 -- pull-list (include-list) helpers for Puller mode:
-function runtime.isPullListed(name)
+function runtime.isPullListed(name, zone)
     if not name or name == '' then return false end
-    for _, n in ipairs(runtime.pullList) do if n == name then return true end end
-    return false
+    if zone then return listHas(runtime.zoneListFor(runtime.zonePull), name) end
+    return listHas(runtime.pullList, name)
 end
-function runtime.addPull(name)
-    if not name or name == '' or runtime.isPullListed(name) then return end
-    table.insert(runtime.pullList, name)
-    table.sort(runtime.pullList)
-    runtime.saveLoadout(true)
-    print('\ag[Triune]\ax added to pull list: ' .. name)
-end
-function runtime.removePull(name)
-    for i, n in ipairs(runtime.pullList) do
-        if n == name then
-            table.remove(runtime.pullList, i); break
-        end
+function runtime.addPull(name, zone)
+    if not name or name == '' or runtime.isPullListed(name, zone) then return end
+    local list, label = runtime.pullList, 'pull list'
+    if zone then
+        list = runtime.zoneListFor(runtime.zonePull, true)
+        if not list then return end
+        label = 'zone pull list (' .. runtime.curZoneShort() .. ')'
     end
+    table.insert(list, name)
+    table.sort(list)
     runtime.saveLoadout(true)
-    print('\ag[Triune]\ax removed from pull list: ' .. name)
+    print('\ag[Triune]\ax added to ' .. label .. ': ' .. name)
+end
+function runtime.removePull(name, zone)
+    listRemove(zone and runtime.zoneListFor(runtime.zonePull) or runtime.pullList, name)
+    runtime.saveLoadout(true)
+    print('\ag[Triune]\ax removed from ' .. (zone and 'zone ' or '') .. 'pull list: ' .. name)
 end
 
 -- Auto-Accept (group / trade / dzadd) lives in the auto_accept plugin (lua/tac/auto_accept.lua).
@@ -6039,20 +6119,26 @@ function runtime.isPullAllowed(name)
     local cleanName = tostring(name)
     if cleanName == '' then return false end
     if isIgnored(cleanName) then return false end
-    if not runtime.pullList or #runtime.pullList == 0 then return true end
+    -- Effective include list = universal + this zone's additions.
+    local zl = runtime.zoneListFor(runtime.zonePull)
+    local nUni = runtime.pullList and #runtime.pullList or 0
+    if nUni == 0 and (not zl or #zl == 0) then return true end
     local lowerName = cleanName:lower()
-    for _, n in ipairs(runtime.pullList) do
-        local strN = tostring(n)
-        if strN ~= '' then
-            local ln = strN:lower()
-            -- exact, or the listed text followed by a word boundary ("a rat"
-            -- matches "a rat" and "a rat king" but not "a ratman")
-            if lowerName == ln or (lowerName:sub(1, #ln) == ln and lowerName:sub(#ln + 1, #ln + 1):match('^[%s%p]?$')) then
-                return true
+    local function matches(list)
+        for _, n in ipairs(list or {}) do
+            local strN = tostring(n)
+            if strN ~= '' then
+                local ln = strN:lower()
+                -- exact, or the listed text followed by a word boundary ("a rat"
+                -- matches "a rat" and "a rat king" but not "a ratman")
+                if lowerName == ln or (lowerName:sub(1, #ln) == ln and lowerName:sub(#ln + 1, #ln + 1):match('^[%s%p]?$')) then
+                    return true
+                end
             end
         end
+        return false
     end
-    return false
+    return matches(runtime.pullList) or matches(zl)
 end
 
 function runtime.extractConName(line)
@@ -6261,6 +6347,14 @@ local function loadoutSig()
     p[#p + 1] = table.concat(ctrlParts, '~')
     if runtime.ignoreList then p[#p + 1] = 'ignore:' .. table.concat(runtime.ignoreList, ',') end
     if runtime.pullList then p[#p + 1] = 'pull:' .. table.concat(runtime.pullList, ',') end
+    for _, pair in ipairs({ { 'zignore:', runtime.zoneIgnore }, { 'zpull:', runtime.zonePull } }) do
+        local zkeys = {}
+        for zs in pairs(pair[2] or {}) do zkeys[#zkeys + 1] = zs end
+        table.sort(zkeys)
+        for _, zs in ipairs(zkeys) do
+            p[#p + 1] = pair[1] .. zs .. '=' .. table.concat(pair[2][zs], ',')
+        end
+    end
     return table.concat(p, '|')
 end
 
@@ -6824,6 +6918,7 @@ function runtime.initPluginManager()
             getPetSpawnInfo       = runtime.getPetSpawnInfo or getPetSpawnInfo,
             isSpawnAlive          = runtime.isSpawnAlive or isSpawnAlive,
             addIgnore             = runtime.addIgnore,
+            addZoneIgnore         = runtime.addZoneIgnore,
             -- Extended Target window per-spawn overrides (see runtime.setXtForce)
             setXtForce            = runtime.setXtForce,
             setXtIgnore           = runtime.setXtIgnore,
@@ -12462,78 +12557,121 @@ function UI.drawControlTab()
         end
 
 
-        accent(GOLD, 'NPCs to Pull (Include List)')
-        accent(MUTED, 'If empty, pulls any mob in radius. If populated, ONLY pulls listed names.')
+        local curZoneShortName = runtime.curZoneShort() -- refreshes the cache below
+        local curZoneName = runtime.zoneNameCached or curZoneShortName or '?'
 
-        if ImGui.Button('Pull Current Target##pullCurTgt', UI.px(170), UI.px(24)) then
-            local nm
-            pcall(function() nm = mq.TLO.Target.CleanName() end)
-            if nm and nm ~= '' then
-                runtime.addPull(nm)
-            else
-                print('\ay[Triune]\ax no target selected.')
-            end
-        end
-        ImGui.SameLine()
-        ImGui.SetNextItemWidth(UI.px(180))
-        runtime.pullInput = ImGui.InputText('##pullAddInput', runtime.pullInput or '')
-        ImGui.SameLine()
-        if ImGui.Button('Add##pullAddBtn') then
-            if runtime.pullInput and runtime.pullInput ~= '' then
-                runtime.addPull(runtime.pullInput); runtime.pullInput = ''
-            end
-        end
+        -- One Pull / Ignore section: a Universal | <zone> toggle picks which list the
+        -- add controls and the list frame below act on. Zone entries apply IN ADDITION
+        -- to the Universal ones.
+        local function drawListSection(o)
+            accent(GOLD, o.title)
+            accent(MUTED, o.hint)
 
-        if ImGui.BeginChild('pullListFrame', 0, UI.px(90), true) then
-            if not runtime.pullList or #runtime.pullList == 0 then
-                ImGui.TextDisabled('(all mobs allowed)')
-            else
-                for i, nm in ipairs(runtime.pullList) do
-                    ImGui.PushID('pl_' .. i)
-                    if ImGui.Button('x') then runtime.removePull(nm) end
+            local zoneSel = runtime[o.scopeKey] == true
+            for idx = 1, 2 do
+                local isZone = (idx == 2)
+                local selected = (isZone == zoneSel)
+                if idx == 2 then ImGui.SameLine() end
+                if selected then
+                    ImGui.PushStyleColor(ImGuiCol.Button, 0.08, 0.32, 0.72, 1.0)
+                    ImGui.PushStyleColor(ImGuiCol.ButtonHovered, 0.12, 0.42, 0.88, 1.0)
+                    ImGui.PushStyleColor(ImGuiCol.ButtonActive, 0.06, 0.25, 0.60, 1.0)
+                end
+                local label = (isZone and curZoneName or 'Universal') .. '##' .. o.id .. 'scope' .. idx
+                if ImGui.Button(label, UI.px(isZone and 150 or 110), UI.px(22)) then
+                    runtime[o.scopeKey] = isZone
+                    zoneSel = isZone
+                end
+                if selected then ImGui.PopStyleColor(3) end
+                if ImGui.IsItemHovered() then
+                    UI.setTooltip(isZone
+                        and ('Entries for ' .. curZoneName .. ' only. Applied in addition to the Universal list.')
+                        or 'Entries that apply in every zone.')
+                end
+            end
+
+            if ImGui.Button(o.curLabel .. '##' .. o.id .. 'Cur', UI.px(170), UI.px(24)) then
+                local nm
+                pcall(function() nm = mq.TLO.Target.CleanName() end)
+                if nm and nm ~= '' then
+                    if o.stopAttack and mq.TLO.Me.Combat() then mq.cmd('/attack off') end
+                    o.addFn(nm, zoneSel)
+                else
+                    print('\ay[Triune]\ax no target selected.')
+                end
+            end
+            ImGui.SameLine()
+            ImGui.SetNextItemWidth(UI.px(180))
+            runtime[o.inputKey] = ImGui.InputText('##' .. o.id .. 'AddInput', runtime[o.inputKey] or '')
+            ImGui.SameLine()
+            if ImGui.Button('Add##' .. o.id .. 'AddBtn') then
+                if runtime[o.inputKey] and runtime[o.inputKey] ~= '' then
+                    o.addFn(runtime[o.inputKey], zoneSel); runtime[o.inputKey] = ''
+                end
+            end
+            ImGui.SameLine()
+            local popId = 'pick_' .. o.id
+            if ImGui.Button('Pick...##' .. o.id .. 'PickBtn') then ImGui.OpenPopup(popId) end
+            if ImGui.IsItemHovered() then
+                UI.setTooltip('Choose from the NPCs currently spawned in this zone (count shown in brackets).\nClick a name to add it to the selected list; names already listed are hidden.')
+            end
+            if ImGui.BeginPopup(popId) then
+                ImGui.Text('NPCs in ' .. curZoneName .. ' -> ' .. (zoneSel and curZoneName or 'Universal'))
+                ImGui.SetNextItemWidth(UI.px(320))
+                local fk = o.id .. 'PickFilter'
+                runtime[fk] = ImGui.InputText('##' .. o.id .. 'PickFilterInput', runtime[fk] or '')
+                local filt = (runtime[fk] or ''):lower()
+                local listed = {}
+                for _, n in ipairs(o.uniList() or {}) do listed[n] = true end
+                for _, n in ipairs(runtime.zoneListFor(runtime[o.storeKey]) or {}) do listed[n] = true end
+                if ImGui.BeginChild('##' .. o.id .. 'PickList', UI.px(320), UI.px(220), true) then
+                    local shown = 0
+                    for _, e in ipairs(runtime.zoneNpcNames()) do
+                        if not listed[e.name] and (filt == '' or e.name:lower():find(filt, 1, true)) then
+                            shown = shown + 1
+                            local lbl = string.format('%s (%d)##%s_%s', e.name, e.count, o.id, e.name)
+                            if ImGui.Selectable(lbl, false, (ImGuiSelectableFlags and ImGuiSelectableFlags.DontClosePopups) or 0) then
+                                o.addFn(e.name, zoneSel)
+                            end
+                        end
+                    end
+                    if shown == 0 then ImGui.TextDisabled('(no matching NPCs)') end
+                end
+                ImGui.EndChild()
+                ImGui.EndPopup()
+            end
+
+            local list = zoneSel and (runtime.zoneListFor(runtime[o.storeKey]) or {}) or (o.uniList() or {})
+            if ImGui.BeginChild(o.id .. 'Frame', 0, UI.px(90), true) then
+                if #list == 0 then
+                    ImGui.TextDisabled(zoneSel and ('(nothing listed for ' .. curZoneName .. ')') or o.emptyText)
+                end
+                for i, nm in ipairs(list) do
+                    ImGui.PushID(o.id .. (zoneSel and '_z' or '_u') .. i)
+                    if ImGui.Button('x') then o.removeFn(nm, zoneSel) end
                     ImGui.SameLine(); ImGui.Text(tostring(nm))
                     ImGui.PopID()
                 end
             end
-        end
-        ImGui.EndChild()
-
-        accent(GOLD, 'NPCs to Ignore (Ignore List)')
-        accent(MUTED, 'Puller will NEVER auto-target these names (shared across all characters).')
-
-        if ImGui.Button('Ignore Current Target##ignoreCurTgt', UI.px(170), UI.px(24)) then
-            local nm
-            pcall(function() nm = mq.TLO.Target.CleanName() end)
-            if nm and nm ~= '' then
-                if mq.TLO.Me.Combat() then mq.cmd('/attack off') end
-                runtime.addIgnore(nm)
-            else
-                print('\ay[Triune]\ax no target selected.')
-            end
-        end
-        ImGui.SameLine()
-        ImGui.SetNextItemWidth(UI.px(180))
-        runtime.ignoreInput = ImGui.InputText('##ignoreAddInput', runtime.ignoreInput or '')
-        ImGui.SameLine()
-        if ImGui.Button('Add##ignoreAddBtn') then
-            if runtime.ignoreInput and runtime.ignoreInput ~= '' then
-                runtime.addIgnore(runtime.ignoreInput); runtime.ignoreInput = ''
-            end
+            ImGui.EndChild()
         end
 
-        if ImGui.BeginChild('ignoreListFrame', 0, UI.px(90), true) then
-            if not runtime.ignoreList or #runtime.ignoreList == 0 then
-                ImGui.TextDisabled('(none ignored)')
-            else
-                for i, nm in ipairs(runtime.ignoreList) do
-                    ImGui.PushID('ig_' .. i)
-                    if ImGui.Button('x') then runtime.removeIgnore(nm) end
-                    ImGui.SameLine(); ImGui.Text(tostring(nm))
-                    ImGui.PopID()
-                end
-            end
-        end
-        ImGui.EndChild()
+        drawListSection({
+            id = 'pull', title = 'NPCs to Pull (Include List)',
+            hint = 'If Universal and this zone\'s lists are both empty, pulls any mob in radius. Otherwise ONLY pulls listed names.',
+            scopeKey = 'pullScopeZone', inputKey = 'pullInput', storeKey = 'zonePull',
+            curLabel = 'Pull Current Target', emptyText = '(all mobs allowed)',
+            uniList = function() return runtime.pullList end,
+            addFn = runtime.addPull, removeFn = runtime.removePull,
+        })
+        drawListSection({
+            id = 'ignore', title = 'NPCs to Ignore (Ignore List)',
+            hint = 'Puller will NEVER auto-target these names (Universal + this zone; shared across all characters).',
+            scopeKey = 'ignoreScopeZone', inputKey = 'ignoreInput', storeKey = 'zoneIgnore',
+            curLabel = 'Ignore Current Target', emptyText = '(none ignored)', stopAttack = true,
+            uniList = function() return runtime.ignoreList end,
+            addFn = runtime.addIgnore, removeFn = runtime.removeIgnore,
+        })
     end
 
     -- Assist Mode Contextual Controls
