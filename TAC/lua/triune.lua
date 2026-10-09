@@ -6188,6 +6188,8 @@ local function loadoutSig()
                     '~' ..
                     tostring(g.burn_only) ..
                     '~' ..
+                    tostring(g.boss_only) ..
+                    '~' ..
                     tostring(g.keep_singing)
             end
         end
@@ -9117,6 +9119,16 @@ function UI.drawGemList(gemsTable, idPrefix, isActiveSet, allowBurn)
                         end
 
                         ImGui.SameLine()
+                        local gbossVal = ImGui.Checkbox('Boss##gbo', g.boss_only or false)
+                        if gbossVal ~= (g.boss_only or false) then
+                            g.boss_only = gbossVal
+                            runtime.saveLoadout(true)
+                        end
+                        if ImGui.IsItemHovered() then
+                            ImGui.SetTooltip('Only cast if the resolved target is a Named mob.')
+                        end
+
+                        ImGui.SameLine()
                         local boVal = ImGui.Checkbox('Burn##bo', g.burn_only or false)
                         if boVal ~= (g.burn_only or false) then
                             g.burn_only = boVal
@@ -9812,6 +9824,12 @@ function UI.drawAATab()
                                     if ImGui.IsItemHovered() then
                                         ImGui.SetTooltip(
                                             'Minimum number of active NPCs on XTarget required for this AA to fire.')
+                                    end
+                                    ImGui.SameLine()
+                                    local aabossVal = ImGui.Checkbox('Boss##aabs', entry.boss_only or false)
+                                    entry.boss_only = aabossVal
+                                    if ImGui.IsItemHovered() then
+                                        ImGui.SetTooltip('Only fire this AA if the resolved target is a Named mob.')
                                     end
                                     ImGui.SameLine()
                                     local aaboVal = ImGui.Checkbox('Burn##bo', entry.burn_only or false)
@@ -23807,7 +23825,12 @@ local function combatTick()
             local xtOk = (numXtar >= minXt) or (not isDet and minXt <= 1)
             if a.enabled and (aPct > 0) and (not a.burn_only or ctrl.burn) and xtOk and not runtime.aaGroupBusy(name, a) then
                 local id = resolveTargetId(a.target, a.cls, a.when, name, aPct, a)
-                if id and conditionMet(a.when, aPct, name, id, a.cls, a.target) then
+                local bossOk = true
+                if id and a.boss_only then
+                    local bs = mq.TLO.Spawn(id)
+                    bossOk = not not (bs() and bs.Named())
+                end
+                if id and bossOk and conditionMet(a.when, aPct, name, id, a.cls, a.target) then
                     if not isDet or (isHostileTarget(id) and isTargetInRange(name, id)) then
                         fireAA(name, a, id)
                     end
@@ -24012,6 +24035,10 @@ local function combatTick()
                         if isEnabled and burnOk and xtOk then
                             local id = resolveTargetId(g.target, g.cls, g.when, g.spell, pctVal, g)
                             local lockedOut = id and castTracker and castTracker.isLockedOut(g.spell, id, g.kind)
+                            if id and g.boss_only then
+                                local bs = mq.TLO.Spawn(id)
+                                if not (bs() and bs.Named()) then lockedOut = true end
+                            end
                             local condOk = false
                             if not lockedOut then
                                 condOk = not not (id and conditionMet(g.when, pctVal, g.spell, id, g.cls, g.target, g))

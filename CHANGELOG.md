@@ -1,5 +1,11 @@
 # Triune AutoCombat Change Log
 
+## 2026-10-09
+
+- **Boss option for Spell Gems and AAs (`TAC/lua/triune.lua`, `TAC/lua/tac/hud_cooldowns.lua`).** Spell gem and AA rows get a **Boss** checkbox beside **Burn**, matching the one disciplines already had. With it checked, the entry only fires when its resolved target is a Named mob (`Spawn.Named`); the gem check runs in the combat gem loop and the AA check in the combat AA loop. `boss_only` is part of the loadout change signature, defaults to off for existing entries, and is passed through to the Cooldowns HUD so the `[Boss]` tag shows on gems and AAs.
+
+---
+
 ## 2026-10-01
 
 - **Ordered self/group targets for spells, discs, and clickies (`TAC/lua/triune.lua`, `tests/test_pure_logic.lua`).** Adds **Me, then Group** and **Group, then Me** so single-target actions choose the first present, living, in-range member whose individual condition is met, in the configured priority order. Self-HP and self-mana conditions stay on the caster; target switching restores the previous target.
