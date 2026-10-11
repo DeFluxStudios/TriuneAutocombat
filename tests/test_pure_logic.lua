@@ -1,5 +1,5 @@
 #!/usr/bin/env luajit
----@diagnostic disable: deprecated
+---@diagnostic disable: deprecated, duplicate-set-field, unused-local, redefined-local, need-check-nil, redundant-parameter, undefined-field, param-type-mismatch
 -- ==========================================================================
 -- tests/test_pure_logic.lua — Unit tests for pure-logic functions in triune.lua
 --
