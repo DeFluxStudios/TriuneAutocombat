@@ -2,6 +2,12 @@
 
 ## 2026-10-09
 
+- **Boss option for Spell Gems and AAs (`TAC/lua/triune.lua`, `TAC/lua/tac/hud_cooldowns.lua`).** Spell gem and AA rows get a **Boss** checkbox beside **Burn**, matching the one disciplines already had. With it checked, the entry only fires when its resolved target is a Named mob (`Spawn.Named`); the gem check runs in the combat gem loop and the AA check in the combat AA loop. `boss_only` is part of the loadout change signature, defaults to off for existing entries, and is passed through to the Cooldowns HUD so the `[Boss]` tag shows on gems and AAs.
+
+---
+
+## 2026-10-01
+
 - **Puller: Universal and per-zone Pull / Ignore lists, with a zone NPC picker (`TAC/lua/triune.lua`, `TAC/lua/tac/hud_xtarget.lua`).** The existing NPCs to Pull (Include List) and NPCs to Ignore (Ignore List) are now the *Universal* lists, and each gains a per-zone list keyed by zone short name (`runtime.zonePull` / `runtime.zoneIgnore`, saved with the loadout as `__zonePull` / `__zoneIgnore`, shared across characters like zone hazards). A zone's list is applied in addition to the Universal one: a mob is ignored if it is on either ignore list, and the include list is the Universal names plus the zone's (both empty still means pull anything). Each section on the Control tab has a **Universal | zone name** toggle (the zone's full name, e.g. The City of Mist) that decides which list Pull / Ignore Current Target, the Add box and the list frame act on, and a **Pick...** button that opens a filterable list of the distinct NPC names currently spawned in the zone with counts (`a rat (12)`), hiding names already listed and staying open so several can be added; the sweep only runs while the popup is open and is cached for 1.5 s. The Extended Target window's row menu gains **Add to Zone Ignore List**. The change signature includes the zone lists.
 
 ---
