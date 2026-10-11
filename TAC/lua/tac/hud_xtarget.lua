@@ -519,7 +519,9 @@ function plugin.onDrawUI()
                         if core.addIgnore then
                             core.addIgnore(xtData.name)
                         end
-                        print(string.format('\ag[Triune]\ax Added %s to ignore list.', xtData.name))
+                    end
+                    if core.addZoneIgnore and ImGui.MenuItem('Add to Zone Ignore List##zign_' .. rowKey) then
+                        core.addZoneIgnore(xtData.name)
                     end
                     ImGui.EndPopup()
                 end
