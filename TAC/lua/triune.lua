@@ -664,7 +664,8 @@ local runtime = {
     switchingSlot = 0,
     switchingSpellName = nil,
     lastDowntimeSwapAt = {},
-    interruptedSwap = nil
+    interruptedSwap = nil,
+    nextLongBuffCast = nil
 }
 
 function runtime.runCombatCategories(runners)
@@ -7360,7 +7361,11 @@ function runtime.initPluginManager()
         if not entry then return nil end
         pm.scriptRunningCache[entry.runName] = nil -- re-poll after the toggle
         if pm.isScriptRunning(entry, true) then
-            mq.cmd('/lua stop ' .. entry.runName)
+            if entry.file == 'long_buffs_standalone.lua' then
+                mq.cmd('/longbuff stop')
+            else
+                mq.cmd('/lua stop ' .. entry.runName)
+            end
             return 'stopped'
         end
         mq.cmd('/lua run ' .. entry.runName)
@@ -23131,6 +23136,25 @@ function runtime.processDowntimeBuffing()
                             end
                         end
                     end
+                end
+            end
+        end
+
+        -- 2b. The optional Long-Duration Buffs plugin supplies class-book
+        -- spells and trained AA buffs through the same safe downtime path.
+        if not candidate and runtime.nextLongBuffCast then
+            local autoEntry, autoTargetId = runtime.nextLongBuffCast()
+            if autoEntry and autoTargetId and autoTargetId > 0 then
+                if autoEntry.autoBuffType == 'aa' then
+                    if runtime.isTargetInRange(autoEntry.spell, autoTargetId) then
+                        runtime.fireAA(autoEntry.name, autoEntry, autoTargetId)
+                    end
+                    return
+                end
+                if autoEntry.autoBuffType == 'spell' and autoEntry.spell and autoEntry.gem then
+                    candidate = autoEntry
+                    candidateTargetId = autoTargetId
+                    targetGem = tonumber(autoEntry.gem) or 0
                 end
             end
         end
