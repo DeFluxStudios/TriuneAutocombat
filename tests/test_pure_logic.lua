@@ -8919,8 +8919,8 @@ do
     -- 9. Verify version sync
     local vTriune = triuneContent:match("local VERSION%s*=%s*'(.-)'")
     local vReadme = readmeContent:match("Current version:%s*%*%*(.-)%*%*")
-    assert_eq(vTriune, '3.2', 'Suite 77: triune.lua VERSION is 3.2')
-    assert_eq(vReadme, '3.2', 'Suite 77: README.md version is 3.2')
+    assert_eq(vTriune, '3.4', 'Suite 77: triune.lua VERSION is 3.4')
+    assert_eq(vReadme, '3.4', 'Suite 77: README.md version is 3.4')
     assert_eq(vTriune, vReadme, 'Suite 77: Version numbers match across triune.lua and README.md')
 end
 
@@ -9035,8 +9035,8 @@ do
     -- 6. Verify version sync
     local vTriune = triuneContent:match("local VERSION%s*=%s*'(.-)'")
     local vReadme = readmeContent:match("Current version:%s*%*%*(.-)%*%*")
-    assert_eq(vTriune, '3.2', 'Suite 78: triune.lua VERSION is 3.2')
-    assert_eq(vReadme, '3.2', 'Suite 78: README.md version is 3.2')
+    assert_eq(vTriune, '3.4', 'Suite 78: triune.lua VERSION is 3.4')
+    assert_eq(vReadme, '3.4', 'Suite 78: README.md version is 3.4')
     assert_eq(vTriune, vReadme, 'Suite 78: Version numbers match across triune.lua and README.md')
 end
 
@@ -9197,8 +9197,8 @@ do
     -- 9. Verify version sync
     local vTriune = triuneContent:match("local VERSION%s*=%s*'(.-)'")
     local vReadme = readmeContent:match("Current version:%s*%*%*(.-)%*%*")
-    assert_eq(vTriune, '3.2', 'Suite 79: triune.lua VERSION is 3.2')
-    assert_eq(vReadme, '3.2', 'Suite 79: README.md version is 3.2')
+    assert_eq(vTriune, '3.4', 'Suite 79: triune.lua VERSION is 3.4')
+    assert_eq(vReadme, '3.4', 'Suite 79: README.md version is 3.4')
     assert_eq(vTriune, vReadme, 'Suite 79: Version numbers match across triune.lua and README.md')
 end
 
@@ -9384,8 +9384,8 @@ do
     -- 7. Verify version sync
     local vTriune = triuneContent:match("local VERSION%s*=%s*'(.-)'")
     local vReadme = readmeContent:match("Current version:%s*%*%*(.-)%*%*")
-    assert_eq(vTriune, '3.2', 'Suite 81: triune.lua VERSION is 3.2')
-    assert_eq(vReadme, '3.2', 'Suite 81: README.md version is 3.2')
+    assert_eq(vTriune, '3.4', 'Suite 81: triune.lua VERSION is 3.4')
+    assert_eq(vReadme, '3.4', 'Suite 81: README.md version is 3.4')
     assert_eq(vTriune, vReadme, 'Suite 81: Version numbers match across triune.lua and README.md')
 end
 
@@ -10074,7 +10074,7 @@ do
     -- Test lifecycle with mock core API
     local mockCore = {
         ctrl = { show_unit_frames = true, uf_lock = false, uf_alpha = 0.85 },
-        VERSION = '3.2',
+        VERSION = '3.4',
         mq = {
             TLO = {
                 Me = {
@@ -10298,7 +10298,7 @@ do
         mq = mockMq,
         ImGui = mockImGui,
         UI = mockUI,
-        VERSION = '3.2',
+        VERSION = '3.4',
         DATA = {},
         loadout = {},
         scriptDir = './',
@@ -10570,7 +10570,7 @@ do
             },
         }
         local core = {
-            VERSION = '3.2', ctrl = ctrl, mq = mq, ImGui = mockImGui, runtime = {}, DATA = {},
+            VERSION = '3.4', ctrl = ctrl, mq = mq, ImGui = mockImGui, runtime = {}, DATA = {},
             colors = { GOLD = { 1, 1, 1, 1 }, ARC = { 1, 1, 1, 1 }, MUTED = { 1, 1, 1, 1 }, GOOD = { 1, 1, 1, 1 }, WARN = { 1, 1, 1, 1 }, ERR = { 1, 1, 1, 1 } },
             px = function(n) return n end, pushTheme = noop, popTheme = noop, accent = noop, setTooltip = noop,
             preBeginWindow = noop, postBeginWindow = noop,
@@ -10934,7 +10934,7 @@ do
             UI = { accent = noop, setTooltip = noop, pushTheme = noop, popTheme = noop, preBeginWindow = noop, postBeginWindow = noop,
                    drawStatusProgressBar = noop, drawSpellIcon = function() return false end,
                    getConColorRgb = function() return { 1, 1, 1, 1 } end, resolveTargetOfTarget = function() return nil end },
-            VERSION = '3.2', DATA = {}, loadout = {}, scriptDir = './',
+            VERSION = '3.4', DATA = {}, loadout = {}, scriptDir = './',
             GOLD = { 1, 1, 1, 1 }, ARC = { 1, 1, 1, 1 }, MUTED = { 1, 1, 1, 1 }, GOOD = { 1, 1, 1, 1 }, WARN = { 1, 1, 1, 1 }, ERR = { 1, 1, 1, 1 },
             saveLoadout = noop, print = quietPrint,
             idxOf = function() return 0 end, fmtSec = tostring, parseDurationSec = function() return 0 end,
@@ -11187,7 +11187,7 @@ do
         ctrl = { auto_summon_fireworks = true, auto_spend_aa_id = 17788, plugins = {} }, mq = mq,
         ImGui = setmetatable({}, { __index = function() return noop end }),
         runtime = { isCasting = function() return false end, cachedAAData = {} },
-        DATA = {}, colors = {}, accent = noop, saveLoadout = noop, VERSION = '3.2',
+        DATA = {}, colors = {}, accent = noop, saveLoadout = noop, VERSION = '3.4',
     }
     local origPrint = print
     print = quietPrint
@@ -11322,7 +11322,7 @@ do
                 ['Alternately Advanced Fireworks'] = { cost = 25, rank = 0, maxRank = 1, category = 'Special' },
             },
         },
-        DATA = {}, colors = {}, accent = noop, saveLoadout = noop, VERSION = '3.2',
+        DATA = {}, colors = {}, accent = noop, saveLoadout = noop, VERSION = '3.4',
     }
     local origPrint = print
     print = quietPrint
@@ -11846,7 +11846,7 @@ do
         UI = { accent = noop, setTooltip = noop, pushTheme = noop, popTheme = noop, preBeginWindow = noop, postBeginWindow = noop,
                drawStatusProgressBar = noop, drawSpellIcon = function() return false end,
                getConColorRgb = function() return { 1, 1, 1, 1 } end, resolveTargetOfTarget = function() return nil end },
-        VERSION = '3.2', DATA = {}, loadout = {}, scriptDir = './',
+        VERSION = '3.4', DATA = {}, loadout = {}, scriptDir = './',
         GOLD = { 1, 1, 1, 1 }, ARC = { 1, 1, 1, 1 }, MUTED = { 1, 1, 1, 1 }, GOOD = { 1, 1, 1, 1 }, WARN = { 1, 1, 1, 1 }, ERR = { 1, 1, 1, 1 },
         saveLoadout = noop, print = quietPrint,
         idxOf = function() return 0 end, fmtSec = tostring, parseDurationSec = function() return 0 end,
@@ -12255,7 +12255,7 @@ end
             },
         }
         local core = setmetatable({
-            mq = mq, ImGui = mockImGui, runtime = { pullState = 'IDLE' }, VERSION = '3.2',
+            mq = mq, ImGui = mockImGui, runtime = { pullState = 'IDLE' }, VERSION = '3.4',
             colors = {}, saveLoadout = function() box.saves = box.saves + 1 end,
             px = function(n) return n end, pushTheme = noop, popTheme = noop, accent = noop, setTooltip = noop,
             preBeginWindow = noop, postBeginWindow = noop,
@@ -12919,7 +12919,7 @@ end)()
         },
     }
     local core = setmetatable({
-        mq = mq, ImGui = mockImGui, runtime = {}, VERSION = '3.2', colors = {},
+        mq = mq, ImGui = mockImGui, runtime = {}, VERSION = '3.4', colors = {},
         saveLoadout = function() saves = saves + 1 end,
         px = function(n) return n end, pushTheme = noop, popTheme = noop, accent = noop, setTooltip = noop,
         preBeginWindow = noop, postBeginWindow = noop,
@@ -14271,7 +14271,7 @@ end)()
         SameLine = function(x) if x then S.imgui.lastSameLineX = x end end,
     }, { __index = function() return function() end end })
     local core = setmetatable({
-        VERSION = '3.2', ctrl = { plugins = {}, show_dps = true }, mq = mq, ImGui = mockImGui, runtime = {}, DATA = {},
+        VERSION = '3.4', ctrl = { plugins = {}, show_dps = true }, mq = mq, ImGui = mockImGui, runtime = {}, DATA = {},
         px = function(n) return n end, colors = {}, pushTheme = function() end, popTheme = function() end, accent = function() end, setTooltip = function() end,
         preBeginWindow = function() end, postBeginWindow = function() end, saveLoadout = function() end,
         drawStatusProgressBar = function(frac, w, h, label, r, g, b) S.imgui.bars = (S.imgui.bars or 0) + 1 S.lastBar = { frac = frac, label = label, r = r, g = g, b = b } texts[#texts + 1] = tostring(label) end,
@@ -14514,7 +14514,7 @@ end)()
     }
     local UI = {}
     local env = setmetatable({
-        ctrl = ctrl, runtime = runtime, mq = mq, ImGui = mockImGui, UI = UI, VERSION = '3.2', open = true,
+        ctrl = ctrl, runtime = runtime, mq = mq, ImGui = mockImGui, UI = UI, VERSION = '3.4', open = true,
         GOLD = { 1, 0.7, 0.54, 1 }, ARC = { 0.3, 0.7, 1, 1 }, MUTED = { 0.49, 0.56, 0.65, 1 }, GOOD = { 0.37, 0.88, 0.64, 1 }, WARN = { 1, 0.72, 0.3, 1 },
         accent = function(c, txt) mockImGui.TextColored(c[1], c[2], c[3], c[4], txt) end,
         idxOf = loadFunc(src, 'idxOf', {}),
@@ -18049,7 +18049,7 @@ do
         }
         local ctrl = { plugins = {}, show_inv = true }
         local core = {
-            VERSION = '3.2', ctrl = ctrl, mq = mq, ImGui = mockImGui, runtime = {}, DATA = {},
+            VERSION = '3.4', ctrl = ctrl, mq = mq, ImGui = mockImGui, runtime = {}, DATA = {},
             colors = { GOLD = { 1, 1, 1, 1 }, ARC = { 1, 1, 1, 1 }, MUTED = { 1, 1, 1, 1 }, GOOD = { 1, 1, 1, 1 }, WARN = { 1, 1, 1, 1 }, ERR = { 1, 1, 1, 1 } },
             px = function(n) return n end, pushTheme = noop, popTheme = noop, accent = noop, setTooltip = noop,
             preBeginWindow = noop, postBeginWindow = noop,
@@ -18554,7 +18554,7 @@ do
         }
         local ctrl = { plugins = {} }
         local core = {
-            VERSION = '3.2', ctrl = ctrl, mq = mq, ImGui = mockImGui, runtime = {}, DATA = {},
+            VERSION = '3.4', ctrl = ctrl, mq = mq, ImGui = mockImGui, runtime = {}, DATA = {},
             colors = { GOLD = { 1, 1, 1, 1 }, ARC = { 1, 1, 1, 1 }, MUTED = { 1, 1, 1, 1 }, GOOD = { 1, 1, 1, 1 }, WARN = { 1, 1, 1, 1 }, ERR = { 1, 1, 1, 1 } },
             px = function(n) return n end, pushTheme = noop, popTheme = noop, accent = noop, setTooltip = noop,
             preBeginWindow = noop, postBeginWindow = noop,
@@ -19850,7 +19850,7 @@ do
         }
         local ctrl = { plugins = {} }
         local core = {
-            VERSION = '3.2', ctrl = ctrl, mq = mq, ImGui = mockImGui, runtime = {}, DATA = {},
+            VERSION = '3.4', ctrl = ctrl, mq = mq, ImGui = mockImGui, runtime = {}, DATA = {},
             colors = { GOLD = { 1, 1, 1, 1 }, ARC = { 1, 1, 1, 1 }, MUTED = { 1, 1, 1, 1 }, GOOD = { 1, 1, 1, 1 }, WARN = { 1, 1, 1, 1 }, ERR = { 1, 1, 1, 1 } },
             px = function(n) return n end, pushTheme = noop, popTheme = noop, accent = noop, setTooltip = noop,
             preBeginWindow = noop, postBeginWindow = noop,

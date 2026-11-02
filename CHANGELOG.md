@@ -1,5 +1,9 @@
 # Triune AutoCombat Change Log
 
+## 2026-11-02
+
+- **Version 3.4 carried everywhere (`README.md`, `TAC/lua/tac/hud_unitframes.lua`, `tests/test_pure_logic.lua`, `.agents/AGENTS.md`, `RELEASES.md`).** The target-recovery change (PR #1) raised `TAC/lua/triune.lua` to 3.4 but left the README at 3.2, which failed the CI version check and the version suites (75, 77, 78, 79, 81). The README, the unit-frame title fallbacks, the test suites' version checks and mocks, and the AGENTS.md examples now say 3.4, and `RELEASES.md` has the `## 3.4` entry the release workflow needs. Tag the release as `v3.4`.
+
 ## 2026-10-26
 
 - **Core hooks for the optional Long-Duration Buffs plugin (`TAC/lua/triune.lua`).** Three small, inert-by-default hooks so a separate plugin (https://github.com/DeFluxStudios/Triune-Long-Buffs) can keep long class buffs up: `runtime.nextLongBuffCast` is declared on the runtime table and, when a plugin sets it, `processDowntimeBuffing()` asks it for a spell or AA buff after the normal buff-list candidates (step 2b) and sends it through the existing safe downtime path (aggro checks, temporary gem swap and restore); `pm.toggleScript` stops the plugin's standalone script through its own `/longbuff stop` bind. With no plugin installed `runtime.nextLongBuffCast` is nil and behavior is unchanged. The plugin itself uses only existing hooks (`onBetweenPulls`, `onCombatTick`, `plugin.window` header buttons, Box Network commands).
