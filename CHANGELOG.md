@@ -7,6 +7,7 @@
   - Results, measured against each zone's own collision triangles: uncovered floor down to 1 to 9 percent, height above the floor down to 0.0 to 0.2 units (median). No zone got worse.
   - Five Deepest Guk zones (`guka`, `gukb`, `gukd`, `gukf`, `gukh`) get two-way links across the same narrow ramp piece, which the mesh could not cross. In `gukh` that left the lower half of the zone cut off, so a character there found "no path back". The links in `gukg` and `mirb`, and the marked area in `takf`, are carried over.
   - Each file is two to three times larger. Not yet tested in game.
+- **Fixed the Everfrost path up to the snowy mine (`TAC/resources/MQ2Nav/everfrost.navmesh`).** The stock MQ2Nav generator skips `everfrost_2_obj.s3d`, which holds the ramp and mound in front of the mine (MIRPORTAL701), so the old mesh ran paths through that model and characters got stuck there on the way to the Miragul snowy mine. This mesh has those 9 tiles rebuilt from the real model, with the zone's original settings; the other 5,031 tiles are unchanged. Tested in game on 2026-11-03: the LDoN runner reached the mine.
 
 ---
 
