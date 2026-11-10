@@ -5,7 +5,7 @@
 - **Rebuilt the 48 LDoN adventure zone navmeshes (`TAC/resources/MQ2Nav/`: `guka`-`gukh`, `mira`-`mirj`, `mmca`-`mmcj`, `ruja`-`rujj`, `taka`-`takj`).** The old meshes left 5 to 29 percent of each zone's walkable floor uncovered and sat 0.2 to 0.5 units above it, so paths stopped short of walls, narrow doorways and some rooms. The new ones cover far more of the floor and follow it closely.
   - Settings: agent radius 1.5 (was 2), cell size 0.3 (was 0.6), cell height 0.1 (was 0.3); height 6, climb 4, slope 75 and tile size 128 are unchanged. `rujc` and `rujf` use cell height 0.15, because Recast cannot hold their full height at 0.1 and drops the upper floors.
   - Results, measured against each zone's own collision triangles: uncovered floor down to 1 to 9 percent, height above the floor down to 0.0 to 0.2 units (median). No zone got worse.
-  - Deepest Guk (`guka`) gets a two-way link across the narrow ramp that gave "Could not find path to destination". The links in `gukg` and `mirb`, and the marked area in `takf`, are carried over.
+  - Deepest Guk (`guka`) and The Accursed Sanctuary (`gukh`) get two-way links across narrow ramps that the mesh could not cross. In `gukh` that left the lower half of the zone cut off, so a character there found "no path back". The links in `gukg` and `mirb`, and the marked area in `takf`, are carried over.
   - Each file is two to three times larger. Not yet tested in game.
 
 ---
